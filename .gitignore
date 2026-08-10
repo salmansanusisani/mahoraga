@@ -1,0 +1,16 @@
+# Python environments and generated files
+backend/.venv/
+backend/.pytest_cache/
+backend/**/__pycache__/
+*.db
+backend/tmp_games/
+
+# Local environment configuration
+.env
+backend/.env
+
+# Empty files accidentally created from terminal commands
+backend/$env
+backend/cd
+backend/cls
+backend/Test-Path
