@@ -1,21 +1,30 @@
-# Mahoraga — adaptive chess agent
+# Mahoraga — 八握剣・異戒神将 (Adaptive Chess Agent)
+
+> *"No matter what you do, it will adapt."* — inspired by the Divine General of Adaptation, **Mahoraga**, from *Jujutsu Kaisen*.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Mahoraga is an adaptive chess opponent that learns from its losses. Instead of
-just searching for the strongest move, it answers a second question: *"why did
-this player beat me, have I seen this shape before, and how much should that
-change what I do now?"*
+Mahoraga is an **adaptive chess opponent that learns from its losses** — just like the Shikigami it's named after. It starts weak and grows stronger by turning every beat into a lesson.
 
-- Starts weak and **auto-adjusts** — the more you beat it, the stronger it gets.
-- Records each loss as a **weakness signature** (motifs, phase, king-safety and
-  development features) and grows **confidence** in patterns it sees again.
-- **Biases its move search** away from positions matching high-confidence
-  patterns, without touching Stockfish's raw strength.
-- Runs 100% locally: browser UI, FastAPI backend, SQLite, and Stockfish all on
-  your machine.
+- 🎯 **Starts weak, auto-adjusts** — the more you beat it, the stronger it gets.
+- 🧠 **Learns your weaknesses** — every loss becomes a *signature* (tactical motifs, phase, king-safety, development) and grows **confidence** when it sees the same shape again.
+- ⚔️ **Adapts mid-game** — the **Wheel of Adaptation** turns: Mahoraga biases its move search away from positions matching its learned patterns, *without* touching Stockfish's raw strength.
+- 🌐 **100% local** — browser UI, FastAPI backend, SQLite, and Stockfish all run on your machine. No cloud, no accounts.
 
-The full spec is in [mahoraga-v1-technical-design.md](mahoraga-v1-technical-design.md).
+The full spec lives in [mahoraga-v1-technical-design.md](mahoraga-v1-technical-design.md).
+
+---
+
+## Why we need YOU
+
+Mahoraga is being built in the open, and it needs **two kinds of people**:
+
+1. **Chess players** — play it, break it, and tell us what feels wrong. Found a move that should have worked? A bot that seems to "know" too much or too little? **Open an issue** and paste the FEN (the game exports it in the board state) — your report becomes data that makes Mahoraga smarter.
+2. **Developers** — build the bot, the UI, and the learning layer. The design deliberately separates the *chess engine* (Stockfish) from the *adaptation layer*, so contributors can dive into the AI without touching move search.
+
+Everything you need is in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
 
 ## Windows setup
 
@@ -33,7 +42,7 @@ uvicorn app.main:app --reload
 
 If PowerShell blocks activation, run `Set-ExecutionPolicy -Scope Process Bypass` once, then activate again.
 
-Open http://127.0.0.1:8000 in a browser. You play White. Click a white piece, then click its destination square. Use the New game button to reset the board. The header shows Mahoraga's current Elo and your head-to-head record so you can watch him adapt.
+Open http://127.0.0.1:8000 in a browser. You play White. Click a white piece, then click its destination square. Use the **New battle** button to reset the board. The header shows Mahoraga's current Elo and your head-to-head record so you can watch the wheel turn.
 
 ## Tests and validation
 
@@ -50,11 +59,9 @@ The validation command checks whether the Phase 1 loss signatures cluster the la
 
 - More weakness phenomena: pawn structure, space, endgame technique.
 - Per-opponent adaptation that scales to many players.
-- Opening-specific memory (learned book).
+- Opening-specific memory (a learned book).
 - Optional server mode so remote opponents can play.
 
 ## Contributing
 
-This is an open-source project under the MIT license. Bug reports, feature
-ideas, documentation, and pull requests are all welcome — see
-[CONTRIBUTING.md](CONTRIBUTING.md) to get started.
+This is an open-source project under the MIT license. Bug reports, feature ideas, documentation, and pull requests are all welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) to get started.

@@ -1,11 +1,46 @@
-# Contributing to Mahoraga
+# Contributing to Mahoraga — 八握剣・異戒神将
 
-Thanks for wanting to help Mahoraga learn and grow. This project converts
-losses into weakness signatures and biases Stockfish's move choice away from
-positions that match known losing patterns. The design is documented in
+Thanks for wanting to help Mahoraga adapt. This project converts losses into
+weakness signatures and biases Stockfish's move choice away from positions
+that match known losing patterns. The design is documented in
 [mahoraga-v1-technical-design.md](mahoraga-v1-technical-design.md).
 
-## Getting started
+**You don't have to be a programmer to contribute.** Chess players are just as
+important as developers — your feedback is what trains the bot.
+
+---
+
+## For chess players: report what feels wrong
+
+The best contributions you can make are **reports of real games** where
+Mahoraga did something that felt wrong:
+
+- Beat Mahoraga using the same idea more than once? Tell us — that means the
+  adaptation layer didn't learn that weakness.
+- Tried a move that the UI rejected as illegal, but it looked legal to you?
+  Report it with the board position.
+- Did the bot seem to "predict" your moves in an unfair way, or play absurdly
+  weak late in a game? We want to hear about it.
+
+### How to file a good bug report
+
+1. **Reproduce** the situation as best you can.
+2. **Open an issue** and include:
+   - What you did (your move, or the opening you played).
+   - What you expected to happen.
+   - What actually happened.
+   - **The board position (FEN)** if you can get it — it's the single most
+     useful piece of data. It looks like
+     `rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1`. You can copy
+     it from the `fen` in the game's response, or just describe the board.
+   - Optional: a screenshot.
+
+No FEN? No problem — describe the position and the last few moves and we'll
+figure it out.
+
+---
+
+## For developers: getting started
 
 1. Fork the repository and clone your fork.
 2. Follow the setup steps in [README.md](README.md) to install Python, Stockfish, and the dependencies.

@@ -1,0 +1,36 @@
+name: "Feature request / improvement"
+description: "Suggest something that would make Mahoraga smarter or the UI better."
+title: "[Idea] "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ideas make the wheel turn. Tell us what you'd like Mahoraga to do better.
+  - type: textarea
+    id: idea
+    attributes:
+      label: What's your idea?
+      placeholder: "e.g. Mahoraga should learn from opening mistakes specifically, or the UI should show why it made a move."
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why would this help?
+      placeholder: "e.g. As a player I want to understand what Mahoraga learned, so I can adjust my strategy."
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which area?
+      options:
+        - Bot intelligence / adaptation
+        - UI / design
+        - Performance
+        - Documentation
+        - Something else
+  - type: input
+    id: context
+    attributes:
+      label: Any supporting example?
+      placeholder: "Link, FEN, screenshot, or story from a game."

@@ -1,0 +1,58 @@
+name: "Bug report — Mahoraga did something wrong"
+description: "Report a move, UI behavior, or adaptation issue with the board position."
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping Mahoraga adapt! A good report includes the board position (FEN).
+  - type: input
+    id: move
+    attributes:
+      label: What did you try to do?
+      placeholder: "e.g. Captured the rook on d8 with my queen, but the move was rejected as illegal."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+      placeholder: "e.g. The queen should capture the rook on d8."
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happened?
+      placeholder: "e.g. Status said 'Move rejected: Illegal move' and the board snapped back. My king was not in check."
+    validations:
+      required: true
+  - type: input
+    id: fen
+    attributes:
+      label: Board position (FEN) — if you have it
+      placeholder: "e.g. rnbqkbnr/pppp1ppp/8/4p3/4P2Q/8/PPPP1PPP/RNB1KBNR b KQkq - 1 2"
+      description: "Copy the fen from the game response, or describe the board and last moves."
+  - type: textarea
+    id: moves
+    attributes:
+      label: Last few moves (optional)
+      placeholder: "e.g. 1. e4 e5 2. Qh5 Nc6 3. Bc4"
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where did this happen?
+      options:
+        - Gameplay / bot behavior
+        - UI / display
+        - Adaptation (it kept repeating the same mistake)
+        - Crash / server error
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      placeholder: "Screenshots, browser, skill level, etc."
