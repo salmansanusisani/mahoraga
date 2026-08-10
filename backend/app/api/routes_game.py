@@ -56,6 +56,13 @@ def _finish(session: Session, game: Game, board: chess.Board) -> str | None:
         return None
     player.games_played += 1
     update_profile(player, game)
+    if game.skill_level is None:
+        if game.result == "1-0":
+            player.estimated_strength = min(2400, player.estimated_strength + 100)
+        elif game.result == "0-1":
+            player.estimated_strength = max(50, player.estimated_strength - 100)
+        else:
+            player.estimated_strength = min(2400, player.estimated_strength + 50)
     if game.result == "1-0":
         player.player_wins += 1
         with EngineWrapper() as engine:
@@ -78,7 +85,7 @@ def _finish(session: Session, game: Game, board: chess.Board) -> str | None:
 def start_game(payload: GameCreate, session: Session = Depends(get_session)):
     if not session.get(Player, payload.player_id):
         raise HTTPException(404, "Player not found")
-    game = Game(player_id=payload.player_id, fen=chess.STARTING_FEN)
+    game = Game(player_id=payload.player_id, fen=chess.STARTING_FEN, skill_level=payload.skill_level)
     session.add(game)
     session.commit()
     session.refresh(game)
@@ -114,11 +121,15 @@ def play_move(game_id: UUID, payload: MoveRequest, session: Session = Depends(ge
         player = session.get(Player, game.player_id)
         try:
             with EngineWrapper() as engine:
-                if len(game.moves) <= 8:
-                    expected = engine.evaluate_cp(board_before, depth=8)
-                    actual = engine.evaluate_cp(board, depth=8)
-                    apply_opening_strength_signal(player, max(0.0, expected - actual))
-                reply = select_move(engine, board, active_records(session, player.id), skill_level=min(12, max(0, player.estimated_strength // 200)))
+                if game.skill_level is not None:
+                    skill_level = min(20, max(0, game.skill_level))
+                else:
+                    if len(game.moves) <= 8:
+                        expected = engine.evaluate_cp(board_before, depth=8)
+                        actual = engine.evaluate_cp(board, depth=8)
+                        apply_opening_strength_signal(player, max(0.0, expected - actual))
+                    skill_level = min(12, max(0, player.estimated_strength // 200))
+                reply = select_move(engine, board, active_records(session, player.id), skill_level=skill_level)
         except FileNotFoundError as error:
             raise HTTPException(
                 503,

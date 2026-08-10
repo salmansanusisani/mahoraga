@@ -5,15 +5,14 @@ Mahoraga is a locally run adaptive chess opponent. The browser UI, API, SQLite d
 ## Windows setup
 
 1. Install Python 3.11 or newer from https://www.python.org/downloads/windows/ and select **Add Python to PATH**.
-2. Download the Windows Stockfish executable from https://stockfishchess.org/download/ and extract it, for example to `C:\Tools\stockfish\stockfish.exe`.
+2. Download the Windows Stockfish executable from https://stockfishchess.org/download/ and extract it. If you leave it in `Downloads` (e.g. `Downloads\stockfish-windows-x86-64-avx2\stockfish\stockfish-windows-x86-64-avx2.exe`) Mahoraga finds it automatically; otherwise set `STOCKFISH_PATH` to its full path.
 3. In PowerShell:
 
 ```powershell
-cd C:\Users\etech\Documents\MAHOURAGA\mahoraga-backend\backend
-py -3.11 -m venv .venv
+cd <repo>\backend
+py -3 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-$env:STOCKFISH_PATH = "C:\Tools\stockfish\stockfish.exe"
 uvicorn app.main:app --reload
 ```
 

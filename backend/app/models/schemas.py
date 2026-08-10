@@ -5,12 +5,12 @@ from pydantic import BaseModel, Field
 
 
 class PlayerCreate(BaseModel):
-    estimated_strength: int = Field(default=800, ge=100, le=3000)
+    estimated_strength: int = Field(default=200, ge=50, le=3000)
 
 
 class GameCreate(BaseModel):
     player_id: UUID
-    skill_level: int = Field(default=5, ge=0, le=20)
+    skill_level: int | None = Field(default=None, ge=0, le=20)
 
 
 class MoveRequest(BaseModel):

@@ -3,6 +3,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from app.api.routes_adaptation import router as adaptation_router
 from app.api.routes_game import router as games_router
 from app.api.routes_player import router as players_router
 from app.db import create_db_and_tables
@@ -10,6 +11,7 @@ from app.db import create_db_and_tables
 app = FastAPI(title="Mahoraga", version="0.5.0")
 app.include_router(players_router)
 app.include_router(games_router)
+app.include_router(adaptation_router)
 
 
 @app.on_event("startup")

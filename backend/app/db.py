@@ -8,6 +8,11 @@ engine = create_engine(DATABASE_URL, connect_args=connect_args)
 
 def create_db_and_tables() -> None:
     SQLModel.metadata.create_all(engine)
+    if DATABASE_URL.startswith("sqlite"):
+        with engine.begin() as conn:
+            columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(game)")}
+            if "skill_level" not in columns:
+                conn.exec_driver_sql("ALTER TABLE game ADD COLUMN skill_level INTEGER")
 
 
 def get_session():

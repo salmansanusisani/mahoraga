@@ -15,7 +15,7 @@ def now() -> datetime:
 class Player(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     created_at: datetime = Field(default_factory=now)
-    estimated_strength: int = 800
+    estimated_strength: int = 200
     games_played: int = 0
     mahoraga_wins: int = 0
     player_wins: int = 0
@@ -30,6 +30,7 @@ class Game(SQLModel, table=True):
     fen: str = ""
     moves: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     result: str = "*"
+    skill_level: int | None = None
     started_at: datetime = Field(default_factory=now)
     ended_at: datetime | None = None
 

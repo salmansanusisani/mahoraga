@@ -91,6 +91,23 @@ def _detect_fork(board_after: chess.Board, move: chess.Move, mover_color: chess.
     return targets >= 2
 
 
+def _is_forked(board: chess.Board, victim_color: chess.Color) -> bool:
+    """True when any enemy piece currently attacks two or more of the
+    victim's valuable pieces (>= a knight) at once."""
+    attacker_color = not victim_color
+    for sq in chess.SQUARES:
+        piece = board.piece_at(sq)
+        if piece and piece.color == attacker_color:
+            targets = sum(
+                1
+                for target in board.attacks(sq)
+                if (t := board.piece_at(target)) and t.color == victim_color and PIECE_VALUES[t.piece_type] >= 3
+            )
+            if targets >= 2:
+                return True
+    return False
+
+
 def _detect_pin(board_after: chess.Board, target_color: chess.Color) -> bool:
     for sq in chess.SQUARES:
         p = board_after.piece_at(sq)
