@@ -40,8 +40,8 @@ aside{padding:8px 0 0}
 h2{margin:0 0 13px;color:var(--muted);font:500 .65rem 'DM Mono',monospace;letter-spacing:.18em;text-transform:uppercase}
 aside h2:not(:first-child){margin-top:33px}
 #wheel{display:flex;justify-content:center}
-.wheel{display:block;filter:drop-shadow(0 12px 28px rgba(255,255,255,.18))}
-.wheel-rotor{transform-origin:130px 130px;transition:transform .9s cubic-bezier(.25,.7,.2,1)}
+.wheel{display:block;width:100%;max-width:280px;height:auto;filter:drop-shadow(0 12px 28px rgba(255,255,255,.18))}
+.wheel-rotor{transform-origin:140px 140px;transition:transform .9s cubic-bezier(.25,.7,.2,1)}
 .wheel-label{fill:#b0b0b0;font:500 8px 'DM Mono',monospace;letter-spacing:.02em}
 .wheel-center{fill:var(--ink);font:500 9px 'DM Mono',monospace;letter-spacing:.16em}
 .wheel-center.small{fill:var(--muted);font-size:10px}
