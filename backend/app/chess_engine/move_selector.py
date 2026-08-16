@@ -1,53 +1,55 @@
-from __future__ import annotations
+"""
+Glue: gets MultiPV candidates from Stockfish, re-ranks them against the
+player's active WeaknessRecords via patch_engine, plays the top result.
+This is what makes adaptation actually observable in play.
 
-import math
-import random
+Below HANDOFF_ELO, Stockfish's own strength options can't produce
+authentic weak play (see weak_play.py), so move selection routes through
+the softmax sampler instead and skips patch_engine entirely - there's no
+adaptation memory to defend yet at a player's first games, and layering
+re-ranking on top of intentionally-noisy play would just muddy both
+signals.
+"""
+from __future__ import annotations
 
 import chess
 
-from app.adaptation.patch_engine import rerank
+from app.adaptation.patch_engine import rerank_candidates
 from app.chess_engine.engine_wrapper import EngineWrapper
+from app.chess_engine.weak_play import HANDOFF_ELO, weak_move
 from app.models.db_models import WeaknessRecord
 
-
-def _pick_with_skill(candidates: list[tuple[chess.Move, float]], skill_level: int) -> chess.Move:
-    """
-    Mimic Stockfish's Skill Level by choosing probabilistically among the
-    re-ranked candidates. Temperature rises as skill drops, so a low-skill
-    bot increasingly picks sub-optimal (blundering) moves; near skill 20 it
-    effectively always plays the best move.
-    """
-    if skill_level >= 20 or len(candidates) <= 1:
-        return candidates[0][0]
-    best = candidates[0][1]
-    temp_cp = 60 + (20 - skill_level) * 18
-    weights = [math.exp(-max(0.0, score - best) / temp_cp) for _, score in candidates]
-    total = sum(weights)
-    draw = random.random() * total
-    acc = 0.0
-    for (move, _), weight in zip(candidates, weights):
-        acc += weight
-        if draw <= acc:
-            return move
-    return candidates[0][0]
+WEAK_PLAY_DEPTH = 3  # shallow on purpose - see weak_play.py
 
 
-def select_move(engine: EngineWrapper, board: chess.Board, records: list[WeaknessRecord], skill_level: int = 5) -> chess.Move:
-    engine.configure_strength(skill_level)
-    # Low skill: shallow search over a wide pool so real blunders surface.
-    # High skill: deep search over the top candidates.
-    if skill_level >= 14:
-        depth, n = 12, 5
-    elif skill_level >= 8:
-        depth, n = 10, 8
-    elif skill_level >= 4:
-        depth, n = 8, 14
-    else:
-        depth, n = 5, 24
-    candidates = engine.multipv_candidates(board, depth=depth, n=n)
+def _search_budget(target_elo: int) -> tuple[int, int]:
+    """(depth, multipv). Stronger opposition -> deeper search over fewer
+    candidates; weaker -> shallower and wider so real blunders surface."""
+    if target_elo < 1600:
+        return 6, 14
+    if target_elo < 2000:
+        return 9, 10
+    if target_elo < 2400:
+        return 11, 6
+    return 13, 5
+
+
+def select_move(
+    engine: EngineWrapper,
+    board: chess.Board,
+    records: list[WeaknessRecord],
+    target_elo: int = 1000,
+) -> chess.Move:
+    if target_elo < HANDOFF_ELO:
+        return weak_move(engine, board, target_elo=target_elo, depth=WEAK_PLAY_DEPTH)
+
+    engine.configure_elo(max(HANDOFF_ELO, target_elo))
+    depth, multipv = _search_budget(target_elo)
+    candidates = engine.multipv_candidates(board, depth=depth, n=multipv)
     if not candidates:
-        return engine.best_move(board)
-    # rerank projects BLACK's (Mahoraga's) position by default to match the
-    # records, which describe the loser (Black) of each learned game.
-    reranked = rerank(board, candidates, records)
-    return _pick_with_skill(reranked, skill_level)
+        return engine.best_move(board, depth=depth)
+
+    if records:
+        candidates = rerank_candidates(engine, board, candidates, records, board.turn)
+
+    return candidates[0][0]

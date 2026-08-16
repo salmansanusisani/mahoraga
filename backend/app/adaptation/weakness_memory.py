@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -7,8 +8,15 @@ from sqlmodel import Session, select
 
 from app.adaptation.confidence import confidence_for, status_for
 from app.adaptation.signature_extractor import Signature
-from app.adaptation.similarity import similarity
+from app.adaptation.similarity import similarity, SIMILARITY_THRESHOLD
 from app.models.db_models import SignatureRecord, WeaknessRecord
+
+logger = logging.getLogger("mahoraga.weakness_memory")
+
+# Similarity band below the merge threshold that's worth a human/agent's
+# eyes during development: close enough to maybe be the same weakness, not
+# full enough to auto-merge (architecture spec section 2).
+REVIEW_MIN = 0.5
 
 
 def _record_signature(session: Session, player_id: UUID, game_id: UUID, signature: Signature) -> SignatureRecord:
@@ -25,9 +33,16 @@ def _as_signature(record: WeaknessRecord) -> Signature:
 def update_from_signature(session: Session, player_id: UUID, game_id: UUID, signature: Signature) -> WeaknessRecord:
     signature_record = _record_signature(session, player_id, game_id, signature)
     candidates = session.exec(select(WeaknessRecord).where(WeaknessRecord.player_id == player_id, WeaknessRecord.status != "archived")).all()
-    matches = [(similarity(signature, _as_signature(record)) or 0.0, record) for record in candidates]
-    score, record = max(matches, default=(0.0, None), key=lambda item: item[0])
-    if record is None or score < 0.75:
+    matches = [(similarity(signature, _as_signature(record)), record) for record in candidates]
+    comparable = [(score, record) for score, record in matches if score is not None]
+    score, record = max(comparable, default=(None, None), key=lambda item: item[0] or 0.0)
+    if score is not None and REVIEW_MIN <= score < SIMILARITY_THRESHOLD:
+        logger.info(
+            "Borderline signature for %s: game=%s phenomenon=%s phase=%s sim=%.3f against %s (%s, confidence=%.2f) - no auto-merge, left for review",
+            player_id, game_id, signature.phenomenon, signature.phase, score,
+            record.phenomenon if record else "?", record.status if record else "?", record.confidence if record else 0.0,
+        )
+    if record is None or score is None or score < SIMILARITY_THRESHOLD:
         record = WeaknessRecord(
             player_id=player_id, phenomenon=signature.phenomenon, motifs=signature.motifs,
             phase=signature.phase, representative_features=signature.features,

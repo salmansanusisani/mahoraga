@@ -5,7 +5,7 @@ from uuid import UUID
 
 import chess
 import chess.pgn
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlmodel import Session, select
 
 from app.adaptation.loss_localizer import localize_loss
@@ -13,12 +13,22 @@ from app.adaptation.signature_extractor import extract_signature
 from app.adaptation.weakness_memory import active_records, decay_unseen, refresh_effectiveness, update_from_signature
 from app.chess_engine.engine_wrapper import EngineWrapper
 from app.chess_engine.move_selector import select_move
+from app.chess_engine.weak_play import skill_to_elo
 from app.db import get_session
 from app.models.db_models import Game, Player
 from app.models.schemas import GameCreate, GameResponse, MoveRequest
 from app.profiling.player_profile import apply_opening_strength_signal, update_profile
 
 router = APIRouter(prefix="/games", tags=["games"])
+
+
+def _shared_engine(request: Request) -> EngineWrapper:
+    """Reuse the app-lifetime Stockfish (started in main.startup). If it
+    failed to start, fall back to a fresh per-request engine."""
+    engine = getattr(request.app.state, "engine", None)
+    if engine is not None:
+        return engine
+    return EngineWrapper()
 
 
 def _game_or_404(session: Session, game_id: UUID) -> Game:
@@ -47,7 +57,7 @@ def _pgn(game: Game) -> chess.pgn.Game:
     return pgn
 
 
-def _finish(session: Session, game: Game, board: chess.Board) -> str | None:
+def _finish(session: Session, game: Game, board: chess.Board, engine: EngineWrapper) -> str | None:
     game.result = board.result(claim_draw=True)
     game.ended_at = datetime.now(timezone.utc)
     game.pgn = str(_pgn(game))
@@ -65,13 +75,12 @@ def _finish(session: Session, game: Game, board: chess.Board) -> str | None:
             player.estimated_strength = min(2400, player.estimated_strength + 50)
     if game.result == "1-0":
         player.player_wins += 1
-        with EngineWrapper() as engine:
-            point = localize_loss(_pgn(game), engine, depth=10)
-            if point:
-                record = update_from_signature(session, player.id, game.id, extract_signature(point))
-                decay_unseen(session, player.id, {record.id})
-                refresh_effectiveness(session, player.id, player.games_played)
-                return f"Mahoraga learned: {record.phenomenon.replace('_', ' ')} ({record.status})."
+        point = localize_loss(_pgn(game), engine, depth=10)
+        if point:
+            record = update_from_signature(session, player.id, game.id, extract_signature(point))
+            decay_unseen(session, player.id, {record.id})
+            refresh_effectiveness(session, player.id, player.games_played)
+            return f"Mahoraga learned: {record.phenomenon.replace('_', ' ')} ({record.status})."
     elif game.result == "0-1":
         player.mahoraga_wins += 1
     else:
@@ -82,14 +91,40 @@ def _finish(session: Session, game: Game, board: chess.Board) -> str | None:
 
 
 @router.post("", response_model=GameResponse)
-def start_game(payload: GameCreate, session: Session = Depends(get_session)):
+def start_game(payload: GameCreate, request: Request, session: Session = Depends(get_session)):
     if not session.get(Player, payload.player_id):
         raise HTTPException(404, "Player not found")
-    game = Game(player_id=payload.player_id, fen=chess.STARTING_FEN, skill_level=payload.skill_level)
+    if payload.human_color not in ("white", "black"):
+        raise HTTPException(422, "human_color must be 'white' or 'black'")
+    player = session.get(Player, payload.player_id)
+    game = Game(player_id=payload.player_id, fen=chess.STARTING_FEN, skill_level=payload.skill_level, human_color=payload.human_color)
     session.add(game)
     session.commit()
     session.refresh(game)
-    return GameResponse(game_id=game.id, fen=game.fen, moves=[], result="*")
+
+    first_move = None
+    board = chess.Board()
+    if payload.human_color == "black":
+        # Mahoraga (White) opens the battle; the human answers as Black.
+        try:
+            engine = _shared_engine(request)
+            if game.skill_level is not None:
+                target_elo = skill_to_elo(game.skill_level)
+            else:
+                target_elo = player.estimated_strength
+            first_move = select_move(engine, board, active_records(session, player.id), target_elo=target_elo).uci()
+            board.push_uci(first_move)
+            game.moves = [first_move]
+            game.fen = board.fen()
+            session.add(game)
+            session.commit()
+        except FileNotFoundError as error:
+            raise HTTPException(
+                503,
+                "Stockfish is not configured. Set STOCKFISH_PATH to the full path of stockfish.exe, then restart Uvicorn.",
+            ) from error
+
+    return GameResponse(game_id=game.id, fen=game.fen, moves=game.moves, result="*", mahoraga_move=first_move, human_color=game.human_color)
 
 
 @router.get("/{game_id}", response_model=GameResponse)
@@ -98,8 +133,24 @@ def get_game(game_id: UUID, session: Session = Depends(get_session)):
     return GameResponse(game_id=game.id, fen=game.fen, moves=game.moves, result=game.result)
 
 
+@router.get("/{game_id}/legal-moves")
+def legal_moves(game_id: UUID, session: Session = Depends(get_session)):
+    game = _game_or_404(session, game_id)
+    board = _board(game)
+    return {
+        "moves": [
+            {
+                "uci": move.uci(),
+                "to": chess.square_name(move.to_square),
+                "capture": board.is_capture(move),
+            }
+            for move in board.legal_moves
+        ]
+    }
+
+
 @router.post("/{game_id}/move", response_model=GameResponse)
-def play_move(game_id: UUID, payload: MoveRequest, session: Session = Depends(get_session)):
+def play_move(game_id: UUID, payload: MoveRequest, request: Request, session: Session = Depends(get_session)):
     game = _game_or_404(session, game_id)
     if game.result != "*":
         raise HTTPException(409, "This game has already ended")
@@ -116,20 +167,20 @@ def play_move(game_id: UUID, payload: MoveRequest, session: Session = Depends(ge
     reply = None
     message = None
     if board.is_game_over(claim_draw=True):
-        message = _finish(session, game, board)
+        message = _finish(session, game, board, _shared_engine(request))
     else:
         player = session.get(Player, game.player_id)
         try:
-            with EngineWrapper() as engine:
-                if game.skill_level is not None:
-                    skill_level = min(20, max(0, game.skill_level))
-                else:
-                    if len(game.moves) <= 8:
-                        expected = engine.evaluate_cp(board_before, depth=8)
-                        actual = engine.evaluate_cp(board, depth=8)
-                        apply_opening_strength_signal(player, max(0.0, expected - actual))
-                    skill_level = min(12, max(0, player.estimated_strength // 200))
-                reply = select_move(engine, board, active_records(session, player.id), skill_level=skill_level)
+            engine = _shared_engine(request)
+            if game.skill_level is not None:
+                target_elo = skill_to_elo(game.skill_level)
+            else:
+                if len(game.moves) <= 8:
+                    expected = engine.evaluate_cp(board_before, depth=8)
+                    actual = engine.evaluate_cp(board, depth=8)
+                    apply_opening_strength_signal(player, max(0.0, expected - actual))
+                target_elo = player.estimated_strength
+            reply = select_move(engine, board, active_records(session, player.id), target_elo=target_elo)
         except FileNotFoundError as error:
             raise HTTPException(
                 503,
@@ -138,7 +189,7 @@ def play_move(game_id: UUID, payload: MoveRequest, session: Session = Depends(ge
         board.push(reply)
         game.moves = [*game.moves, reply.uci()]
         if board.is_game_over(claim_draw=True):
-            message = _finish(session, game, board)
+            message = _finish(session, game, board, engine)
     game.fen = board.fen()
     session.add(game)
     session.commit()

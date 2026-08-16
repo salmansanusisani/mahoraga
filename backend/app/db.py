@@ -13,6 +13,8 @@ def create_db_and_tables() -> None:
             columns = {row[1] for row in conn.exec_driver_sql("PRAGMA table_info(game)")}
             if "skill_level" not in columns:
                 conn.exec_driver_sql("ALTER TABLE game ADD COLUMN skill_level INTEGER")
+            if "human_color" not in columns:
+                conn.exec_driver_sql("ALTER TABLE game ADD COLUMN human_color VARCHAR")
 
 
 def get_session():

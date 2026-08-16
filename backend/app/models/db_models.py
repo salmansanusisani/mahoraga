@@ -31,6 +31,7 @@ class Game(SQLModel, table=True):
     moves: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     result: str = "*"
     skill_level: int | None = None
+    human_color: str = "white"
     started_at: datetime = Field(default_factory=now)
     ended_at: datetime | None = None
 

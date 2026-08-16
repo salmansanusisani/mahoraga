@@ -1,3 +1,314 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mahoraga — 八握剣 | Adaptive Chess</title><link rel="stylesheet" href="/style.css"></head>
-<body><main><section class="hero"><div class="brand"><p class="eyebrow">八握剣・異戒神将 — DIVINE GENERAL OF ADAPTATION</p><h1>Mahoraga<span class="kanji"> 八握剣</span></h1></div><div class="hero-right"><p id="status">Summon a battle to begin.</p><p id="mahoraga-elo" class="empty">Mahoraga Elo: —</p><p id="adaptation-status" class="empty"></p></div></section><section class="play"><div><div id="board" aria-label="Chess board"></div><div class="controls"><button id="new-game">New battle</button><button id="flip">Flip board</button></div></div><aside><h2>Wheel of Adaptation 適応</h2><div id="wheel"></div><h2>Battle record</h2><ol id="moves"></ol><h2>Treasured weaknesses</h2><div id="weaknesses" class="empty">No weaknesses observed yet.</div></aside></section></main><script src="/app.js"></script></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>MAHORAGA — Divine General of Adaptation | Adaptive Chess</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css?v=8">
+</head>
+<body class="theme-monochrome">
+  <!-- Interactive Domain Expansion Particle Background -->
+  <canvas id="particle-canvas" class="particle-canvas"></canvas>
+  <div class="scanline-overlay"></div>
+
+  <!-- Top Navigation Header -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button id="menu-toggle" class="btn-icon" aria-label="Open ritual settings" title="Ritual Settings">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+      <div class="brand">
+        <span class="brand-title">MAHORAGA</span>
+        <span class="brand-sub">DIVINE GENERAL OF ADAPTATION</span>
+      </div>
+    </div>
+
+    <div class="topbar-chips">
+      <div class="hud-chip" id="mahoraga-elo-chip">
+        <span class="chip-label">MAHORAGA ELO</span>
+        <span class="chip-val" id="mahoraga-elo">--</span>
+      </div>
+      <div class="hud-chip" id="adaptation-chip">
+        <span class="chip-label">STATUS</span>
+        <span class="chip-val" id="adaptation-status">RITUAL IDLE</span>
+      </div>
+      <button id="sound-toggle" class="btn-icon" aria-label="Toggle Sound Effects" title="Toggle Sound FX">
+        <svg id="sound-on-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </svg>
+        <svg id="sound-off-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <line x1="23" y1="9" x2="17" y2="15"></line>
+          <line x1="17" y1="9" x2="23" y2="15"></line>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Game Layout -->
+  <main class="main-layout">
+    <!-- LEFT COLUMN: Chessboard only with top/bottom player headers -->
+    <section class="board-column">
+      <!-- Opponent (Mahoraga) Bar -->
+      <div class="player-bar opponent-bar" id="opponent-bar">
+        <div class="player-info">
+          <div class="avatar opponent-avatar">
+            <!-- Mahoraga Emblem -->
+            <svg viewBox="0 0 36 36" class="avatar-svg" fill="none" stroke="currentColor">
+              <circle cx="18" cy="18" r="14" stroke-width="1.2" stroke-dasharray="2 2"/>
+              <circle cx="18" cy="18" r="7" stroke-width="1.5"/>
+              <circle cx="18" cy="18" r="2" fill="currentColor"/>
+              <line x1="18" y1="4" x2="18" y2="32" stroke-width="1.2"/>
+              <line x1="4" y1="18" x2="32" y2="18" stroke-width="1.2"/>
+              <line x1="8.1" y1="8.1" x2="27.9" y2="27.9" stroke-width="1.2"/>
+              <line x1="27.9" y1="8.1" x2="8.1" y2="27.9" stroke-width="1.2"/>
+            </svg>
+            <span class="turn-dot" id="opponent-turn-dot"></span>
+          </div>
+          <div class="player-meta">
+            <div class="player-name-row">
+              <span class="player-name">MAHORAGA</span>
+              <span class="player-tag">SHIKIGAMI</span>
+              <span class="player-elo" id="opponent-elo-badge">(200)</span>
+            </div>
+            <div class="captured-pieces" id="opponent-captured"></div>
+          </div>
+        </div>
+        <div class="turn-status-indicator" id="opponent-status-indicator"></div>
+      </div>
+
+      <!-- Interactive Board Viewport -->
+      <div class="board-wrapper">
+        <div id="board" class="chess-board"></div>
+
+        <!-- Toast Notifications Overlay -->
+        <div id="toast-container" class="toast-container"></div>
+
+        <!-- Checkmate / End-Game Domain Overlay -->
+        <div class="mate-overlay" id="mate-overlay" hidden>
+          <div class="mate-card">
+            <div class="mate-decor">[ DOMAIN CONCLUDED ]</div>
+            <h2 class="mate-title" id="mate-title">CHECKMATE</h2>
+            <p class="mate-sub" id="mate-sub">Ritual completed.</p>
+            <div class="mate-stats" id="mate-stats"></div>
+            <button id="mate-new-btn" class="btn-primary">
+              <span>SUMMON NEW BATTLE</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Human Player Bar -->
+      <div class="player-bar human-bar" id="human-bar">
+        <div class="player-info">
+          <div class="avatar human-avatar">
+            <svg viewBox="0 0 36 36" class="avatar-svg" fill="none" stroke="currentColor">
+              <circle cx="18" cy="18" r="14" stroke-width="1.2"/>
+              <circle cx="18" cy="13" r="5" stroke-width="1.5"/>
+              <path d="M7 29c0-6 5-9 11-9s11 3 11 9" stroke-width="1.5"/>
+            </svg>
+            <span class="turn-dot" id="human-turn-dot"></span>
+          </div>
+          <div class="player-meta">
+            <div class="player-name-row">
+              <span class="player-name">CHALLENGER</span>
+              <span class="player-tag" id="human-color-tag">WHITE</span>
+              <span class="player-elo" id="player-record-badge">0W / 0L</span>
+            </div>
+            <div class="captured-pieces" id="human-captured"></div>
+          </div>
+        </div>
+        <div class="turn-status-indicator" id="human-status-indicator"></div>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN: Adaptation Wheel at Top + Tabbed Moves/Weakness Hub at Bottom -->
+    <aside class="sidebar-column">
+      <!-- TOP: Mahoraga Adaptation Wheel Card -->
+      <div class="hud-panel wheel-card">
+        <div class="panel-header">
+          <div class="panel-title-group">
+            <span class="panel-code">01 // HARMONIC ENGINE</span>
+            <h2 class="panel-title">WHEEL OF ADAPTATION</h2>
+          </div>
+          <span class="badge-status" id="wheel-status-badge">STANDBY</span>
+        </div>
+
+        <div class="wheel-body">
+          <div id="wheel-container" class="wheel-container">
+            <!-- Dynamic 8-Handled Wheel SVG renders here -->
+          </div>
+
+          <div class="wheel-metrics">
+            <div class="metric-box">
+              <span class="metric-label">COVERAGE</span>
+              <span class="metric-value" id="metric-coverage">0%</span>
+            </div>
+            <div class="metric-box">
+              <span class="metric-label">WIN RATE</span>
+              <span class="metric-value" id="metric-winrate">0%</span>
+            </div>
+            <div class="metric-box">
+              <span class="metric-label">PATTERNS</span>
+              <span class="metric-value" id="metric-patterns">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM: Tabbed Game Hub -->
+      <div class="hud-panel hub-card">
+        <div class="tab-header">
+          <button class="tab-btn active" data-tab="moves" id="tab-btn-moves">
+            <span>MOVES</span>
+          </button>
+          <button class="tab-btn" data-tab="weaknesses" id="tab-btn-weaknesses">
+            <span>WEAKNESSES</span>
+            <span class="tab-count" id="weakness-tab-count">0</span>
+          </button>
+          <button class="tab-btn" data-tab="events" id="tab-btn-events">
+            <span>RITUAL LOG</span>
+          </button>
+        </div>
+
+        <!-- Tab 1: Moves List -->
+        <div class="tab-pane active" id="pane-moves">
+          <div class="moves-scroll-container">
+            <table class="moves-table" id="moves-table">
+              <tbody id="moves-body">
+                <tr class="empty-row"><td colspan="3" class="hint-text">The battle scroll is unwritten.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- History Navigation Bar -->
+          <div class="nav-controls">
+            <button id="nav-first" class="nav-btn" title="Start of battle">|‹</button>
+            <button id="nav-prev" class="nav-btn" title="Previous move">‹</button>
+            <button id="nav-next" class="nav-btn" title="Next move">›</button>
+            <button id="nav-last" class="nav-btn" title="Latest move">›|</button>
+            <button id="nav-live" class="nav-btn live-btn" title="Return to live position">LIVE</button>
+          </div>
+        </div>
+
+        <!-- Tab 2: Weaknesses List -->
+        <div class="tab-pane" id="pane-weaknesses">
+          <div class="weaknesses-list-container" id="weaknesses-list">
+            <p class="empty-hint">No weaknesses recorded yet. Defeat Mahoraga to turn the wheel.</p>
+          </div>
+        </div>
+
+        <!-- Tab 3: Ritual Log Feed -->
+        <div class="tab-pane" id="pane-events">
+          <div class="events-feed-container" id="events-feed">
+            <p class="empty-hint">Awaiting adaptation events.</p>
+          </div>
+        </div>
+
+        <!-- Bottom Game Action Bar -->
+        <div class="hub-actions">
+          <button id="btn-draw" class="action-btn" title="Claim or Offer Draw">
+            <span class="btn-icon-text">½</span> DRAW
+          </button>
+          <button id="btn-resign" class="action-btn" title="Resign Battle">
+            <span class="btn-icon-text">🏳</span> RESIGN
+          </button>
+          <button id="btn-flip" class="action-btn" title="Flip Board Perspective">
+            <span class="btn-icon-text">⇄</span> FLIP
+          </button>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Slide-out Ritual Settings Drawer -->
+  <div id="drawer-backdrop" class="drawer-backdrop" hidden></div>
+  <aside id="settings-drawer" class="settings-drawer" aria-hidden="true">
+    <div class="drawer-header">
+      <div class="drawer-title-group">
+        <span class="drawer-tag">[ CONFIGURATION ]</span>
+        <h2 class="drawer-title">RITUAL SETTINGS</h2>
+      </div>
+      <button id="drawer-close" class="btn-icon" aria-label="Close Settings">✕</button>
+    </div>
+
+    <div class="drawer-body">
+      <!-- Quick Action: New Battle CTA -->
+      <div class="drawer-section">
+        <button id="drawer-new-game" class="btn-primary full-width">
+          <span>SUMMON NEW BATTLE</span>
+        </button>
+      </div>
+
+      <!-- Side Selection -->
+      <div class="drawer-section">
+        <label class="section-label">SELECT YOUR SIDE</label>
+        <div class="side-selector" id="side-selector">
+          <button class="side-choice-btn active" data-side="white">
+            <span class="side-circle white-circle"></span>
+            <span>PLAY WHITE (YOU FIRST)</span>
+          </button>
+          <button class="side-choice-btn" data-side="black">
+            <span class="side-circle black-circle"></span>
+            <span>PLAY BLACK (MAHORAGA OPENS)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Difficulty Mode -->
+      <div class="drawer-section">
+        <label class="section-label">ADAPTATION DIFFICULTY</label>
+        <div class="select-wrapper">
+          <select id="skill-level-select" class="hud-select">
+            <option value="auto">Adaptive Mode (Auto-adjusting Elo)</option>
+            <option value="1">Level 1 (Apprentice ~ 200 Elo)</option>
+            <option value="5">Level 5 (Sorcerer ~ 700 Elo)</option>
+            <option value="10">Level 10 (Grade 1 ~ 1300 Elo)</option>
+            <option value="15">Level 15 (Special Grade ~ 1900 Elo)</option>
+            <option value="20">Level 20 (Divine General ~ 2500+ Elo)</option>
+          </select>
+        </div>
+        <p class="field-hint">Adaptive Mode dynamically tunes Elo based on your performance and opening speed.</p>
+      </div>
+
+      <!-- Toggles -->
+      <div class="drawer-section">
+        <label class="section-label">EXPERIENCE CONTROLS</label>
+        <div class="toggle-row">
+          <span>Cursed Sound Effects</span>
+          <input type="checkbox" id="check-sound" checked>
+        </div>
+        <div class="toggle-row">
+          <span>Coordinate Notation</span>
+          <input type="checkbox" id="check-coords" checked>
+        </div>
+      </div>
+
+      <!-- Reset Player Record -->
+      <div class="drawer-section danger-zone">
+        <label class="section-label">MEMORY EXPULSION</label>
+        <p class="field-hint">Purges local player profile and resets Mahoraga's learned memory against you.</p>
+        <button id="btn-reset-player" class="btn-danger full-width">PURGE ADAPTATION DATA</button>
+      </div>
+
+      <!-- Lore & Info -->
+      <div class="drawer-section about-section">
+        <label class="section-label">ABOUT THE RITUAL</label>
+        <p class="about-text">
+          Mahoraga operates on an agentic adaptation loop. When you exploit a tactical weakness, it clusters the signature into its memory. As confidence grows, it biases future move search away from familiar traps without compromising Stockfish's raw calculation.
+        </p>
+      </div>
+    </div>
+  </aside>
+
+  <script src="/app.js?v=8"></script>
+</body>
+</html>

@@ -43,11 +43,27 @@ def weaknesses(player_id: UUID, session: Session = Depends(get_session)):
 def wheel(player_id: UUID, session: Session = Depends(get_session)):
     _player(session, player_id)
     records = session.exec(select(WeaknessRecord).where(WeaknessRecord.player_id == player_id, WeaknessRecord.status != "archived")).all()
-    categories = {key: [] for key in ("Openings", "Tactics", "King safety", "Development", "Endgames", "Time mgmt", "Structure", "Psychology")}
+    handles = {key: 0.0 for key in ("Openings", "Tactics", "King safety", "Development", "Endgames", "Time mgmt", "Structure", "Psychology")}
+    counts = {key: 0 for key in handles}
+    tactician = {"fork", "pin", "sacrifice"}
+    king_risk = {"king_attack", "back_rank"}
+    structural = {"positional_decline"}
     for record in records:
-        category = "King safety" if record.phenomenon in {"king_attack", "back_rank"} else "Tactics"
-        categories[category].append(record.confidence)
-    return {key: round(sum(values) / len(values), 3) if values else 0.0 for key, values in categories.items()}
+        touched: list[str] = []
+        if record.phenomenon in tactician:
+            touched.append("Tactics")
+        if record.phenomenon in king_risk:
+            touched.append("King safety")
+        if record.phenomenon in structural:
+            touched.append("Structure")
+        if record.phase == "opening":
+            touched.append("Openings")
+        elif record.phase == "endgame":
+            touched.append("Endgames")
+        for handle in touched:
+            handles[handle] += record.confidence
+            counts[handle] += 1
+    return {key: round(handles[key] / counts[key], 3) if counts[key] else 0.0 for key in handles}
 
 
 @router.get("/{player_id}/adaptation-status")

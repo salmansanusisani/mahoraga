@@ -21,6 +21,7 @@ from app.adaptation.signature_extractor import extract_signature
 from app.adaptation.weakness_memory import update_from_signature
 from app.chess_engine.engine_wrapper import EngineWrapper
 from app.chess_engine.move_selector import select_move
+from app.chess_engine.weak_play import skill_to_elo
 from app.db import engine
 
 
@@ -54,10 +55,10 @@ def main():
     with Session(engine) as db:
         player_id, record = _build_adapted_record(db)
         with EngineWrapper() as engine_wrapper:
-            before = select_move(engine_wrapper, board, [], skill_level=14)
+            before = select_move(engine_wrapper, board, [], target_elo=skill_to_elo(14))
             print(f"Before learning:  Mahoraga plays {before}")
 
-            after = select_move(engine_wrapper, board, [record], skill_level=14)
+            after = select_move(engine_wrapper, board, [record], target_elo=skill_to_elo(14))
             print(f"After learning:   Mahoraga plays {after}")
 
             if after.uci() == "g8f6":

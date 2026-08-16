@@ -8,6 +8,7 @@ import chess
 import chess.engine
 
 from app.config import stockfish_candidates
+from app.chess_engine.weak_play import HANDOFF_ELO
 
 DEFAULT_DEPTH = 12
 MATE_SCORE_CP = 10_000
@@ -45,6 +46,10 @@ class EngineWrapper:
 
     def configure_strength(self, skill_level: int = 5) -> None:
         self._engine.configure({"Skill Level": max(0, min(20, skill_level))})
+
+    def configure_elo(self, elo: int) -> None:
+        """Limit-strength play via UCI_Elo. Clamped to Stockfish's floor."""
+        self._engine.configure({"UCI_LimitStrength": True, "UCI_Elo": int(max(HANDOFF_ELO, elo))})
 
     def best_move(self, board: chess.Board, depth: int = DEFAULT_DEPTH) -> chess.Move:
         return self._engine.play(board, chess.engine.Limit(depth=depth)).move
