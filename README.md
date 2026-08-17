@@ -1,4 +1,4 @@
-# Mahoraga — 八握剣・異戒神将 (Adaptive Chess Agent)
+# Mahoraga — Divine General of Adaptation (Adaptive Chess Agent)
 
 > *"No matter what you do, it will adapt."* — inspired by the Divine General of Adaptation, **Mahoraga**, from *Jujutsu Kaisen*.
 
@@ -9,6 +9,7 @@ Mahoraga is an **adaptive chess opponent that learns from its losses** — just 
 - 🎯 **Starts weak, auto-adjusts** — the more you beat it, the stronger it gets.
 - 🧠 **Learns your weaknesses** — every loss becomes a *signature* (tactical motifs, phase, king-safety, development) and grows **confidence** when it sees the same shape again.
 - ⚔️ **Adapts mid-game** — the **Wheel of Adaptation** turns: Mahoraga biases its move search away from positions matching its learned patterns, *without* touching Stockfish's raw strength.
+- ♟️ **Chess.com-inspired UI** — clean two-column layout with a distraction-free board, 8-handled adaptation wheel, moves scroll table, captured pieces counter, and sound FX.
 - 🌐 **100% local** — browser UI, FastAPI backend, SQLite, and Stockfish all run on your machine. No cloud, no accounts.
 
 The full spec lives in [mahoraga-v1-technical-design.md](mahoraga-v1-technical-design.md).
