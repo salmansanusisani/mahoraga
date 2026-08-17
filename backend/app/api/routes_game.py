@@ -90,6 +90,14 @@ def _finish(session: Session, game: Game, board: chess.Board, engine: EngineWrap
     return None
 
 
+def _effective_elo(game: Game, player: Player | None) -> int:
+    if game.skill_level is not None:
+        if game.skill_level >= 50:
+            return game.skill_level
+        return skill_to_elo(game.skill_level)
+    return player.estimated_strength if player else 200
+
+
 @router.post("", response_model=GameResponse)
 def start_game(payload: GameCreate, request: Request, session: Session = Depends(get_session)):
     if not session.get(Player, payload.player_id):
@@ -104,14 +112,12 @@ def start_game(payload: GameCreate, request: Request, session: Session = Depends
 
     first_move = None
     board = chess.Board()
+    target_elo = _effective_elo(game, player)
+
     if payload.human_color == "black":
         # Mahoraga (White) opens the battle; the human answers as Black.
         try:
             engine = _shared_engine(request)
-            if game.skill_level is not None:
-                target_elo = skill_to_elo(game.skill_level)
-            else:
-                target_elo = player.estimated_strength
             first_move = select_move(engine, board, active_records(session, player.id), target_elo=target_elo).uci()
             board.push_uci(first_move)
             game.moves = [first_move]
@@ -124,13 +130,32 @@ def start_game(payload: GameCreate, request: Request, session: Session = Depends
                 "Stockfish is not configured. Set STOCKFISH_PATH to the full path of stockfish.exe, then restart Uvicorn.",
             ) from error
 
-    return GameResponse(game_id=game.id, fen=game.fen, moves=game.moves, result="*", mahoraga_move=first_move, human_color=game.human_color)
+    return GameResponse(
+        game_id=game.id,
+        fen=game.fen,
+        moves=game.moves,
+        result="*",
+        mahoraga_move=first_move,
+        human_color=game.human_color,
+        mahoraga_elo=target_elo,
+        skill_level=game.skill_level,
+    )
 
 
 @router.get("/{game_id}", response_model=GameResponse)
 def get_game(game_id: UUID, session: Session = Depends(get_session)):
     game = _game_or_404(session, game_id)
-    return GameResponse(game_id=game.id, fen=game.fen, moves=game.moves, result=game.result)
+    player = session.get(Player, game.player_id)
+    target_elo = _effective_elo(game, player)
+    return GameResponse(
+        game_id=game.id,
+        fen=game.fen,
+        moves=game.moves,
+        result=game.result,
+        human_color=game.human_color,
+        mahoraga_elo=target_elo,
+        skill_level=game.skill_level,
+    )
 
 
 @router.get("/{game_id}/legal-moves")
@@ -166,21 +191,22 @@ def play_move(game_id: UUID, payload: MoveRequest, request: Request, session: Se
     game.moves = [*game.moves, move.uci()]
     reply = None
     message = None
+    player = session.get(Player, game.player_id)
+    target_elo = _effective_elo(game, player)
+
     if board.is_game_over(claim_draw=True):
         message = _finish(session, game, board, _shared_engine(request))
     else:
-        player = session.get(Player, game.player_id)
         try:
             engine = _shared_engine(request)
-            if game.skill_level is not None:
-                target_elo = skill_to_elo(game.skill_level)
-            else:
+            if game.skill_level is None:
                 if len(game.moves) <= 8:
                     expected = engine.evaluate_cp(board_before, depth=8)
                     actual = engine.evaluate_cp(board, depth=8)
                     apply_opening_strength_signal(player, max(0.0, expected - actual))
-                target_elo = player.estimated_strength
-            reply = select_move(engine, board, active_records(session, player.id), target_elo=target_elo)
+                target_elo = player.estimated_strength if player else 200
+
+            reply = select_move(engine, board, active_records(session, player.id if player else None), target_elo=target_elo)
         except FileNotFoundError as error:
             raise HTTPException(
                 503,
@@ -193,4 +219,14 @@ def play_move(game_id: UUID, payload: MoveRequest, request: Request, session: Se
     game.fen = board.fen()
     session.add(game)
     session.commit()
-    return GameResponse(game_id=game.id, fen=game.fen, moves=game.moves, result=game.result, mahoraga_move=reply.uci() if reply else None, message=message)
+    return GameResponse(
+        game_id=game.id,
+        fen=game.fen,
+        moves=game.moves,
+        result=game.result,
+        mahoraga_move=reply.uci() if reply else None,
+        message=message,
+        human_color=game.human_color,
+        mahoraga_elo=target_elo,
+        skill_level=game.skill_level,
+    )

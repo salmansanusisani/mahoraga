@@ -10,7 +10,7 @@ class PlayerCreate(BaseModel):
 
 class GameCreate(BaseModel):
     player_id: UUID
-    skill_level: int | None = Field(default=None, ge=0, le=20)
+    skill_level: int | None = Field(default=None, ge=0, le=3200)
     human_color: str = Field(default="white")
 
 
@@ -26,3 +26,5 @@ class GameResponse(BaseModel):
     mahoraga_move: str | None = None
     message: str | None = None
     human_color: str = "white"
+    mahoraga_elo: int | None = None
+    skill_level: int | None = None

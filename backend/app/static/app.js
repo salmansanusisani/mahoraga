@@ -59,6 +59,7 @@ let suppressClick = false;
 let drag = null;
 let wheelRotation = 0;
 let currentSkillLevel = null;
+let currentGameMahoragaElo = null;
 
 /* ================= WEB AUDIO SYNTHESIZER ================= */
 let audioCtx = null;
@@ -623,6 +624,10 @@ async function playMove(uci) {
       }
     }
 
+    if (data.mahoraga_elo !== undefined && data.mahoraga_elo !== null) {
+      currentGameMahoragaElo = data.mahoraga_elo;
+    }
+
     if (data.message && /learned/i.test(data.message)) {
       playSfx('wheel');
       showToast(data.message.toUpperCase(), 4000);
@@ -733,6 +738,10 @@ async function newGame() {
       render();
       await animateMove(first);
       playSfx('move');
+    }
+
+    if (data.mahoraga_elo !== undefined && data.mahoraga_elo !== null) {
+      currentGameMahoragaElo = data.mahoraga_elo;
     }
 
     fen = liveFen;
@@ -929,9 +938,16 @@ async function refreshProfile() {
       api(`/adaptation/events?player_id=${playerId}&limit=15`)
     ]);
 
-    // Topbar Chips
+    // Topbar Chips & Opponent Badges
+    const effectiveElo = (currentSkillLevel !== null)
+      ? currentSkillLevel
+      : (currentGameMahoragaElo !== null ? currentGameMahoragaElo : profile.estimated_strength);
+
     const eloBadge = $('#mahoraga-elo');
-    if (eloBadge) eloBadge.textContent = `${profile.estimated_strength} (${profile.games_played}G ${profile.record.mahoraga_wins}W/${profile.record.player_wins}L)`;
+    if (eloBadge) {
+      const modeStr = currentSkillLevel !== null ? `${effectiveElo} (Fixed)` : `${effectiveElo}`;
+      eloBadge.textContent = `${modeStr} (${profile.games_played}G ${profile.record.mahoraga_wins}W/${profile.record.player_wins}L)`;
+    }
 
     const adaptChip = $('#adaptation-status');
     if (adaptChip) {
@@ -942,7 +958,7 @@ async function refreshProfile() {
 
     // Opponent / Human Card Badges
     const oppEloBadge = $('#opponent-elo-badge');
-    if (oppEloBadge) oppEloBadge.textContent = `(${profile.estimated_strength})`;
+    if (oppEloBadge) oppEloBadge.textContent = `(${effectiveElo})`;
 
     const playerRecBadge = $('#player-record-badge');
     if (playerRecBadge) playerRecBadge.textContent = `${profile.record.player_wins}W / ${profile.record.mahoraga_wins}L`;
@@ -1161,8 +1177,10 @@ function initEvents() {
   const skillSelect = $('#skill-level-select');
   if (skillSelect) {
     skillSelect.onchange = (e) => {
-      currentSkillLevel = e.target.value === 'auto' ? null : e.target.value;
-      showToast(`DIFFICULTY SET TO ${e.target.value.toUpperCase()}`);
+      currentSkillLevel = e.target.value === 'auto' ? null : parseInt(e.target.value, 10);
+      currentGameMahoragaElo = currentSkillLevel;
+      refreshProfile();
+      showToast(currentSkillLevel !== null ? `MAHORAGA ELO SET TO ${currentSkillLevel}` : 'ADAPTIVE MODE (AUTO-ADJUSTING ELO)');
     };
   }
 
